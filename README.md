@@ -1,5 +1,5 @@
 # FM-Wavetable-Synthesized-Violin-
-A FM-Wavetable-Synthesized Violin with Natural Vibrato and Bow Pressure
+A FM-Wavetable-Synthesized Violin with Natural Vibrato and Bow Pressure, programmed by [Nyquist programming language](http://www.cs.cmu.edu/~rbd/doc/nyquist/).
 ## Author
 [Qin Liu](https://www.linkedin.com/in/qin-liu-b100501ab/) - Music Technology Group, Universitat Pompeu Fabra, Barcelona, Spain - qin.liu01@estudiant.upf.edu
 ## Abstract
