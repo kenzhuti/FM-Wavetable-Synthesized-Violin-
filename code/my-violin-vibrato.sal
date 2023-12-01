@@ -1,0 +1,177 @@
+;; 1. my violin synthesizer based on sampling my physical violin by Audacity
+define variable *my-violin* =
+   build-harmonic(1, 2048) * 1 +
+   build-harmonic(2, 2048) * 0.17452964286411900000 +
+   build-harmonic(3, 2048) * 0.22990207973924600000 +
+   build-harmonic(4, 2048) * 0.17989448523005900000 +
+   build-harmonic(5, 2048) * 0.04630542770890230000 +
+   build-harmonic(6, 2048) * 0.02499622642430240000 +
+   build-harmonic(7, 2048) * 0.00349131633193455000 +
+   build-harmonic(8, 2048) * 0.01790798821878150000 +
+   build-harmonic(9, 2048) * 0.01504010610053750000 +
+   build-harmonic(10, 2048) * 0.00298530528632253000 +
+   build-harmonic(11, 2048) * 0.00182616199390823000 +
+   build-harmonic(12, 2048) * 0.00072163152928728800 +
+   build-harmonic(13, 2048) * 0.00344271086381577000 +
+   build-harmonic(14, 2048) * 0.00413465854722451000 +
+   build-harmonic(15, 2048) * 0.00051158146351575600 +
+   build-harmonic(16, 2048) * 0.00037441746625046300 +
+   build-harmonic(17, 2048) * 0.00064994057456605600 +
+   build-harmonic(18, 2048) * 0.00075070515824375800 +
+   build-harmonic(19, 2048) * 0.00049567772178956500 +
+   build-harmonic(20, 2048) * 0.00054859367991671700 +
+   build-harmonic(21, 2048) * 0.00099746703104262100 +
+   build-harmonic(22, 2048) * 0.00032962177977347500 +
+   build-harmonic(23, 2048) * 0.00017746803882466100 +
+   build-harmonic(24, 2048) * 0.00041332240713676500 +
+   build-harmonic(25, 2048) * 0.00030812532875995900 +
+   build-harmonic(26, 2048) * 0.00073063218608189300 +
+   build-harmonic(27, 2048) * 0.00035942273947336900 +
+   build-harmonic(28, 2048) * 0.00068628814987421900 +
+   build-harmonic(29, 2048) * 0.00032742753606944200 +
+   build-harmonic(30, 2048) * 0.00042111925568817600
+
+; complete the table specification
+set *my-violin* = list(*my-violin*, hz-to-step(1), #t)
+play osc(E5, 2, *my-violin*) * 0.5
+;play osc(A4, 2, *my-violin*) * 0.5
+play osc(D4, 2, *my-violin*) * 0.5
+;play osc(G3, 2, *my-violin*) * 0.5
+;play osc(G3, 2) * 0.5
+;play hzosc(440, *my-violin*)
+
+; TODO: set default bowpress-env
+function vib-freq(rate);; compute frequency control
+  ;; last 3 cycles take 3.0 / vibrato rate seconds
+  begin
+    with d = get-duration(1)
+    return pwlv(rate, d - 3.0 / rate, rate, d, rate * 1.15) ~~ 1
+  end
+
+function vib(mod-freq, mod-amp)
+  begin
+  ; set freq-env = pwlv()
+  ; env(0.3, 0.35, 0.34, 0.0, (1.0 / 3.0), (1.0 / 3.0)) + (2.0 / 3.0)
+  with d = get-duration(1)
+  if d < 0.35 then set amp-env = 0
+  if d >= 0.35 & d <= 1 then
+    set amp-env = pwlv(0, 0.3, 0, 0.3, 2.0 / 3.0 * mod-amp, 0.65, 1 * mod-amp, 1.65, 1 * mod-amp, 2.0, 2.0 / 3.0 * mod-amp)
+  ; duration > 1 
+  else set amp-env = pwlv(0, 0.3, 0, 0.3, 2.0 / 3 * mod-amp, 0.65, 1 * mod-amp, d - 0.65, 1 * mod-amp, d, 2.0 / 3 * mod-amp) ~~ 1
+  return hzosc(vib-freq(mod-freq)) * amp-env
+end
+
+function violin-note(pitch: C4, vib-freq: nil, vib-amp: nil, bowpress-env: nil)
+  begin
+    ; vibrato frequency
+    if vib-freq = nil then
+      if rrandom() < 0.7 then ; Vibrato frequency between 4-10Hz with 5-6Hz more often
+        set vib-freq = 5 + rrandom() ; Random between 5-6Hz with 70% chance
+      else
+        if rrandom() < 1.0 / 3.0 then
+          set vib-freq = 3 + 2 * rrandom() ; Random between 3-5Hz with 10% chance
+        else
+          set vib-freq = 6 + 2 * rrandom()
+          ; set vib-freq = 6 + 4 * rrandom() ; Random between 6-10Hz with 20% chance
+    ; vibrato amplitude
+    if vib-amp = nil then
+      set vib-amp = 0.2 + 0.15 * rrandom()
+      set mod-amp = step-to-hz(pitch + vib-amp) - step-to-hz(pitch)
+    set bowpress-env1 = 1
+    set vib-random-jitter = resample(sound-srate-abs(12, noise() * mod-amp * 0.3), 1000) ; vib amplitude jitter between 0 ~ 0.3 * mod-amp
+    ; bow pressure envelope
+    if bowpress-env = nil then ; Normal bowing, bow attack
+      set bow-attack = 0.08 + 0.22 * rrandom(); 0.08 ~ 0.3
+      set bow-release = 0.2 + 0.5 * rrandom() ; 0.2 ~ 0.7
+      set bowpress-env = env(bow-attack, 0, bow-release, 1, 1, 1)
+    display bowpress
+    return fmosc(pitch, vib(vib-freq, mod-amp) + 0.7 * vib-random-jitter, *my-violin*) * bowpress-env
+  end
+
+play violin-note(pitch: B4, bowpress-env: const(1)) ~ 2
+play violin-note(pitch: B4) ~ 2
+
+; Roger: add vibrato jitter
+plot sound-srate-abs(5, noise())
+play fmosc(c5, lfo(6) * 20 + resample(sound-srate-abs(7, noise()), 1000), *my-violin*)
+plot lfo(6) * 20
+set vib-jitter = resample(sound-srate-abs(7, noise()), 1000)
+plot lfo(6) * 20 + 2 * resample(sound-srate-abs(7, noise()), 1000)
+plot resample(sound-srate-abs(7, noise()), 1000) * 4
+
+;; 3. Bow Pressure Envelope
+
+;; 4. Demo Scores
+;; 4.1 Demo Score 1: Random Pentatonic Chinese-Styled Piece
+set pitch-pat = make-random(list(G3, A3, C4, D4, E4, G4, A4, C5, D5, E5, G5, A5, C6, D6, E6, G6, A6, {C7 weight: 0.2}, {D7 weight: 0.2}, {E7 weight: 0.2}, {G7 weight: 0.1}, {A7 weight: 0.1}))
+set rhythm-pat = make-heap(list(h, q, q, q, q, i, i, make-cycle(list(i, i))))
+exec score-gen(save: quote(pentatonic-score),
+               name: quote(violin-note),
+               score-len: 40, 
+               ioi: next(rhythm-pat),
+               pitch: next(pitch-pat)) 
+exec score-play(pentatonic-score) ~ 0.5
+; stretch ~ 0.6 equal to 100bps
+;W   (whole, 4 beats),
+;H   (half, 2 beats),
+;Q   (quarter, 1 beat),
+;I   (eighth, 1/2 beat),
+;S   (sixteenth, 1/4 beat),
+;%   (thirtysecond, 1/8 beat), and
+;^   (sixtyfourth, 1/16 beat).
+
+;; 4.2 Demo Score 2: Lightly Row
+set LR1 = {{0 1 {score-begin-end 0 16}}
+           {0 1 {violin-note pitch: E5}}
+           {1 1 {violin-note pitch: CS5}}
+           {2 2 {violin-note pitch: CS5}}
+           {4 1 {violin-note pitch: D5}}
+           {5 1 {violin-note pitch: B4}}
+           {6 2 {violin-note pitch: B4}}
+           {8 1 {violin-note pitch: A4}}
+           {9 1 {violin-note pitch: B4}}
+           {10 1 {violin-note pitch: CS5}}
+           {11 1 {violin-note pitch: D5}}
+           {12 1 {violin-note pitch: E5}}
+           {13 1 {violin-note pitch: E5}}
+           {14 2 {violin-note pitch: E5}}}
+
+exec score-play(LR1) ~ 1
+
+set LR2 = {{0 1 {score-begin-end 0 16}}
+           {0 1 {violin-note pitch: E5}}
+           {1 1 {violin-note pitch: CS5}}
+           {2 1 {violin-note pitch: CS5}}
+           {3 1 {violin-note pitch: CS5}}
+           {4 1 {violin-note pitch: D5}}
+           {5 1 {violin-note pitch: B4}}
+           {6 1 {violin-note pitch: B4}}
+           {7 1 {violin-note pitch: B4}}
+           {8 1 {violin-note pitch: A4}}
+           {9 1 {violin-note pitch: CS5}}
+           {10 1 {violin-note pitch: E5}}
+           {11 1 {violin-note pitch: E5}}
+           {12 1 {violin-note pitch: CS5}}
+           {13 1 {violin-note pitch: CS5}}
+           {14 2 {violin-note pitch: CS5}}}
+exec score-play(LR2) ~ 0.353
+
+set LR3 = {{0 1 {score-begin-end 0 16}}
+           {0 1 {violin-note pitch: B4}}
+           {1 1 {violin-note pitch: B4}}
+           {2 1 {violin-note pitch: B4}}
+           {3 1 {violin-note pitch: B4}}
+           {4 1 {violin-note pitch: B4}}
+           {5 1 {violin-note pitch: CS5}}
+           {6 2 {violin-note pitch: D5}}
+           {8 1 {violin-note pitch: CS5}}
+           {9 1 {violin-note pitch: CS5}}
+           {10 1 {violin-note pitch: CS5}}
+           {11 1 {violin-note pitch: CS5}}
+           {12 1 {violin-note pitch: CS5}}
+           {13 1 {violin-note pitch: D5}}
+           {14 2 {violin-note pitch: E5}}}
+exec score-play(LR3) ~ 0.3
+
+set lighty-row-score = score-append(LR1, LR2, LR3, LR2)
+exec score-play(lighty-row-score) ~ 0.34
